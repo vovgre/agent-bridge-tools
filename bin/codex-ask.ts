@@ -34,7 +34,10 @@ const cmd = args[0];
 const opt = (name: string, dflt?: string) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : dflt; };
 const opts = (name: string) => args.flatMap((a, i) => (a === `--${name}` ? [args[i + 1]] : []));
 const flag = (name: string) => args.includes(`--${name}`);
-const die = (msg: string): never => { console.error(`codex-ask: ${msg}`); process.exit(2); };
+/** Locks this process holds: released before any exit (process.exit skips `finally`). */
+const held: (() => void)[] = [];
+const die = (msg: string): never => { for (const release of held.splice(0)) release(); console.error(`codex-ask: ${msg}`); process.exit(2); };
+if (process.platform === "win32") die("native Windows isn't supported (process groups, signals): run it inside WSL");
 
 const thread = resolve(opt("thread") ?? die("--thread <dir> is required"));
 const file = (round: string, part: string) => resolve(thread, `${round}-${part}`);
@@ -81,7 +84,9 @@ function lock(round: string): () => void {
   writeFileSync(mine, String(process.pid));
   try {
     linkSync(mine, p);
-    return () => { try { if (readFileSync(p, "utf8") === String(process.pid)) rmSync(p); } catch {} };
+    const release = () => { try { if (readFileSync(p, "utf8") === String(process.pid)) rmSync(p); } catch {} };
+    held.push(release);
+    return release;
   } catch {
     let owner = NaN;
     try { owner = Number(readFileSync(p, "utf8")); } catch {}
@@ -237,8 +242,9 @@ function summary(s: State) {
 function checkAuth() {
   if (process.env.CODEX_ASK_SKIP_AUTH) return;
   const r = spawnSync("codex", ["login", "status"], { env: childEnv(), encoding: "utf8" });
+  if ((r.error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") die("the `codex` CLI isn't installed or not on PATH: `npm install -g @openai/codex` (or run /codex:setup), then `codex login`");
   const text = `${r.stdout ?? ""}${r.stderr ?? ""}`;
-  if (r.status !== 0 || !/ChatGPT/i.test(text)) die(`Codex isn't signed in with ChatGPT (\`codex login status\`: ${text.trim() || r.error?.message}). Run \`codex login\`.`);
+  if (r.status !== 0 || !/ChatGPT/i.test(text)) die(`Codex isn't signed in with ChatGPT (\`codex login status\`: ${text.trim() || r.error?.message}). Sign in with ChatGPT: \`codex logout\` if an API key is in use, then \`codex login\`.`);
 }
 
 async function main() {

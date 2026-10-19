@@ -11,12 +11,12 @@
 // scenario or setup that times out stops the whole run (the server is killed at once, nothing else runs).
 import { spawn, spawnSync } from "node:child_process";
 import { createServer, type Server } from "node:http";
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomBytes } from "node:crypto";
-import { Browser, type Context, type Page } from "./cdp.ts";
+import { Browser, findChrome, type Context, type Page } from "./cdp.ts";
 import { ensureBuild, fingerprint, type BuildIdentity } from "./build.ts";
 import { alive, freePort, killGroup, onExit, ownDir, ownGroup, releaseDir, releaseGroup, removeDir, sleep, supervisorPid, TimeoutError, waitUntil, withTimeout } from "./proc.ts";
 import type { Person, Project, RunInfo, ScenarioContext } from "./project.ts";
@@ -36,11 +36,14 @@ function die(msg: string): never {
   process.exit(2);
 }
 
+if (process.platform === "win32") die("native Windows isn't supported (process groups, signals): run it inside WSL");
 const toolsRoot = resolve(import.meta.dirname, "..");
+/** For adapters outside this repo: import runtime helpers from here (`${process.env.AGENT_BRIDGE_TOOLS}/ui/png.ts`). */
+process.env.AGENT_BRIDGE_TOOLS = toolsRoot;
+const toolsVersion = (() => { try { return JSON.parse(readFileSync(join(toolsRoot, ".claude-plugin", "plugin.json"), "utf8")).version as string; } catch { return null; } })();
 const projectArg = opt("project") ?? die("--project <name | path> is required");
 const projectDir = /[\\/]/.test(projectArg) ? resolve(projectArg) : join(toolsRoot, "projects", projectArg);
-const projectFile = join(projectDir, "index.ts");
-if (!existsSync(projectFile)) die(`no project at ${projectFile}`);
+const projectFile = ["index.ts", "index.mts"].map((f) => join(projectDir, f)).find((f) => existsSync(f)) ?? die(`no project at ${join(projectDir, "index.ts")} (or index.mts)`);
 const app = resolve(opt("app") ?? die("--app <checkout> is required"));
 if (!existsSync(app)) die(`no such checkout: ${app}`);
 const project = (await import(pathToFileURL(projectFile).href)).project as Project<unknown>;
@@ -57,8 +60,11 @@ const keep = flag("keep");
 // A run folder of its own, also when --artifacts points at a folder used before.
 const runId = `${project.name}-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23)}-${randomBytes(3).toString("hex")}`;
 const given = opt("artifacts");
-const artifacts = resolve(given ? (existsSync(given) && readdirSync(given).length ? join(given, runId) : given) : join(toolsRoot, ".runs", runId));
-mkdirSync(artifacts, { recursive: true });
+// Default: next to the app (`<app>/.agent-bridge/ui-runs/`, keep `.agent-bridge/` git-ignored), never inside the tools
+// (an installed plugin's folder is a cache that updates replace).
+const artifacts = resolve(given ? (existsSync(given) && readdirSync(given).length ? join(given, runId) : given) : join(app, ".agent-bridge", "ui-runs", runId));
+try { mkdirSync(artifacts, { recursive: true }); } catch (err) { die(`can't create the artifacts folder ${artifacts}: ${(err as Error).message} (pass --artifacts <dir>)`); }
+if (!findChrome()) die("no Chrome found: install Google Chrome or Chromium, or set CHROME_BIN");
 const runFile = join(artifacts, "run.json");
 const runState: Record<string, unknown> = { runnerPid: process.pid, startedAt: new Date().toISOString(), keep, artifacts };
 const record = (more: Record<string, unknown>) => {
@@ -205,7 +211,7 @@ try {
   console.log(`${passed} passed, ${results.length - passed} failed${notRun ? `, ${notRun} not run` : ""}`);
   writeFileSync(join(artifacts, "summary.json"), JSON.stringify({
     project: project.name, ok: !failed, stopped: stopped || null, failures,
-    tools: gitInfo(toolsRoot), app: { path: app, ...gitInfo(app) }, build,
+    tools: { version: toolsVersion, ...gitInfo(toolsRoot) }, app: { path: app, ...gitInfo(app) }, build,
     chrome: browser ? { version: browser.version, binary: browser.binary } : null, node: process.version, base: run.base,
     timeouts: { scenario: scenarioTimeout, setup: setupTimeout, ready: readyTimeout },
     results, notRun: wanted.slice(results.length), trapHits, blockedByGate: browser?.gate.blocked ?? [],

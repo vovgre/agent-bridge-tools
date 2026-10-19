@@ -4,7 +4,8 @@
   "license": "MIT",
   "repository": "github:vovgre/agent-bridge-tools",
   "type": "module",
-  "engines": { "node": ">=22.6" },
+  "engines": { "node": ">=22.18" },
+  "os": ["darwin", "linux"],
   "scripts": {
     "test": "node --test test/*.test.ts",
     "example": "node ui/run.ts --project example --app examples/notes --all",

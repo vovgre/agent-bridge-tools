@@ -6,15 +6,26 @@ all of it, OpenAI's Codex plugin included.
 
 ## Install
 
-In Claude Code (2.1.275 or later):
+**Before you start:**
+- macOS or Linux (on Windows: inside WSL, with Node, Codex and Chrome installed there too).
+- Node **22.18+** (or a newer LTS) as the `node` Claude's shell finds first: check `node --version` in a Claude Code
+  `!` command. Older Node fails with `ERR_UNKNOWN_FILE_EXTENSION`.
+- The Codex CLI signed in **with ChatGPT**: `npm install -g @openai/codex`, `codex login`, and `codex login status`
+  must say "Logged in using ChatGPT". `codex-ask` refuses an API-key login; `/codex:setup` accepts either.
+- Chrome or Chromium for `browser-check` (`CHROME_BIN` to pick one).
+- Already have OpenAI's plugin as `codex@openai-codex`? Uninstall it first (`/plugin uninstall codex@openai-codex`):
+  this plugin brings its own copy, and two copies can't both run their hooks.
+
+Then in Claude Code (2.1.275 or later):
 
 ```text
 /plugin install agent-bridge --marketplace vovgre/agent-bridge-tools
+/reload-plugins
+/codex:setup
 ```
 
-or in two steps: `/plugin marketplace add vovgre/agent-bridge-tools`, then `/plugin install agent-bridge@agent-bridge-tools`.
-Then `/reload-plugins` and `/codex:setup` (it checks that the `codex` CLI is installed and signed in with ChatGPT).
-Needs Node 22.6+ and, for the browser kit, Chrome.
+The first line can also be two: `/plugin marketplace add vovgre/agent-bridge-tools`, then
+`/plugin install agent-bridge@agent-bridge-tools`.
 
 You get:
 
@@ -24,12 +35,17 @@ You get:
 | `agent-bridge` (this repo, MIT) | skill `codex-ask`: a Codex round with a request packet, a reply that survives a crash, and one `decision.md` per topic (`bin/codex-ask.ts`, protocol in `docs/ROUNDS.md`) |
 | | skill `browser-check`: real-browser checks of a web app on an isolated instance (`ui/`, example in `projects/example/` + `examples/notes/`) |
 
-Already have `codex@openai-codex`? Uninstall it first (`/plugin uninstall codex@openai-codex`): two copies of the same
-plugin can't both run their hooks.
-
 **Which Codex tool when:** a quick review of the diff → `/codex:review`; a design challenge → `/codex:adversarial-review
 <focus>`; a task handed off → `/codex:rescue`; a review that has to leave a record (what was asked, Codex's full answer,
-what was decided) → ask Claude for a `codex-ask` round.
+what was decided) → ask Claude for a `codex-ask` round. The `/codex:*` commands use whatever login Codex has;
+`codex-ask` always runs on ChatGPT and strips API keys from Codex's environment.
+
+Both skills keep their files in the project's `.agent-bridge/` folder (Codex threads in `threads/`, browser runs in
+`ui-runs/`): add `.agent-bridge/` to the project's `.gitignore`.
+
+**Updates:** `/plugin marketplace update agent-bridge-tools`, then `/plugin update agent-bridge@agent-bridge-tools` and
+`/plugin update codex@agent-bridge-tools`, then `/reload-plugins`. OpenAI's plugin moves only when this marketplace moves
+its pin (`.claude-plugin/marketplace.json`); a release bumps `version` in both manifests.
 
 ## Without the plugin
 
@@ -42,10 +58,10 @@ ln -sfn "$PWD/skills/browser-check" ~/.claude/skills/browser-check
 - **A round with Codex:** write `<project>/.agent-bridge/threads/<topic>/01-request.md` (format in `docs/ROUNDS.md`),
   then `node bin/codex-ask.ts start --thread <that dir> --round 01 --cwd <worktree> --mode review --sandbox read-only --notify`,
   then read `01-reply.md`. Add `.agent-bridge/` to the project's `.gitignore`.
-- **A real-browser check:** `node ui/run.ts --project example --app examples/notes --all`. For your app, copy
-  `projects/example/` into your app's repo and pass its path: `--project <dir>`.
+- **A real-browser check:** `node ui/run.ts --project example --app examples/notes --all`. For your app, see
+  "An adapter in your app's repo" below.
 
-TypeScript runs directly on Node 22.6+, no dependencies. `npm test` runs the launcher tests against a fake `codex` (no
+TypeScript runs directly on Node 22.18+, no dependencies. `npm test` runs the launcher tests against a fake `codex` (no
 Codex needed) and the browser kit's tests (skipped without Chrome).
 
 ## The browser kit (`ui/`)
@@ -62,11 +78,12 @@ node ui/run.ts --project <name | path> --app <checkout> --scenario login,upload 
 
 Options: `--no-build` (refuse a stale build instead of building), `--keep` (keep the instance's data directory),
 `--gif` (needs ffmpeg; never part of pass / fail), `--scenario-timeout` (120 000 ms), `--setup-timeout` (60 000),
-`--ready-timeout` (30 000); `--project` takes a name in `projects/` or a path to a project folder.
+`--ready-timeout` (30 000); `--project` takes a name in `projects/` or a path to a folder with `index.ts` (or `index.mts`).
+`UI_RESERVED_PORTS=5173,8080` keeps runs off the ports your dev servers use.
 
 Exit 0 = every selected scenario ran and passed, 1 = anything else, 2 = bad arguments (an empty selection included).
-Artifacts (default `.runs/<project>-<time>-<random>/`, git-ignored; a reused `--artifacts` folder gets a new subfolder):
-`run.json` (pids and folders while it runs), `summary.json` (verdict, failures, tools and app revisions with their dirty
+Artifacts (default `<app>/.agent-bridge/ui-runs/<project>-<time>-<random>/`, never inside the tools; a reused `--artifacts` folder gets a new subfolder):
+`run.json` (pids and folders while it runs), `summary.json` (verdict, failures, the tools' version and revision, the app's revision with its dirty
 files, the build's input / output fingerprints, Chrome version and binary, node, timeouts, results, requests the gate
 blocked), `server.log`, `chrome.log`, and per scenario `steps.txt`, numbered screenshots, `failure-<person>-<n>.png`,
 `<person>-<n>.log` (console, exceptions, crashes, dialogs, network, every request) and that scenario's server log.
@@ -118,6 +135,23 @@ output, command), `server(run)` (command, cwd, the whole env, a readiness path),
 (synthetic users / data once per run, through the app's own HTTP API), `aiAttempt`, `verify(run)` and `scenarios`. A
 scenario gets `t.person(name)` (a browser context; `open(url)` makes a tab), `t.step`, `t.shot`, `t.check`, `t.note`
 (printed with the result), `t.aiAttempts()`, `t.expectAiRefusal()`, `t.expectServerError(url)`.
+
+### An adapter in your app's repo
+
+Keep the adapter with the app (for example `test/browser/index.ts`) and pass its folder: `--project test/browser`.
+Type imports are erased when Node runs the file, so `import type { Project } from "…/ui/project.ts"` needs no real
+path (point it at a local clone of this repo if you want editor types). Runtime helpers come from the tools folder,
+which the runner puts in `AGENT_BRIDGE_TOOLS` before it loads the adapter:
+
+```ts
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+const tools = process.env.AGENT_BRIDGE_TOOLS!;
+const { png } = await import(pathToFileURL(join(tools, "ui", "png.ts")).href);
+```
+
+If the app's `package.json` says `"type": "commonjs"`, name the adapter `index.mts`. The example in `projects/example/`
+has every hook; copy it and adapt.
 
 ### Tests
 

@@ -6,20 +6,25 @@ description: Check a web app's flows in a real headless Chrome (real clicks, typ
 # browser-check
 
 `<tools>` below = `${CLAUDE_PLUGIN_ROOT}` (installed as the `agent-bridge` plugin), or the agent-bridge-tools checkout.
-Needs Node 22.6+ and Chrome (`CHROME_BIN` to pick one). Read the "browser kit" part of `<tools>/README.md` once.
+Read the "browser kit" part of `<tools>/README.md` once. Quote every path in commands: they often contain spaces.
 
-1. The app needs an adapter: a folder with `index.ts` exporting `project` (`<tools>/ui/project.ts`). Start from
-   `<tools>/projects/example/index.ts`; keep it in the app's repo (for example `test/browser/`) and pass its path.
+0. Once per session: macOS / Linux / WSL only; `node --version` 22.18 or newer; Chrome or Chromium installed (or
+   `CHROME_BIN` set); the app's `.gitignore` has `.agent-bridge/` (runs are saved in `<app>/.agent-bridge/ui-runs/`).
+1. The app needs an adapter: a folder with `index.ts` exporting `project` (`<tools>/ui/project.ts` has the contract).
+   Keep it in the app's repo (for example `test/browser/`), never in `<tools>`: an installed plugin's folder is a cache.
+   Start from `<tools>/projects/example/index.ts` and the README section "An adapter in your app's repo" (helpers via
+   `process.env.AGENT_BRIDGE_TOOLS`; `index.mts` when the app's package.json says `"type": "commonjs"`).
    The adapter's isolation duty: every config / data path at `run.dataDir` / `run.tmp`, outside services at `run.aiTrap`,
    no keys, `allowOrigins` exactly what the browser needs, `verify` for what may not be left behind.
 2. Run it (in the background for long suites):
    ```sh
-   node "<tools>/ui/run.ts" --project <adapter dir> --app <checkout> --all          # or --scenario a,b
+   node "<tools>/ui/run.ts" --project "<app>/test/browser" --app "<app>" --all          # or --scenario a,b
    ```
-   `UI_RESERVED_PORTS=5173,8080` keeps the run off ports your dev servers use; `--gif` records (needs ffmpeg).
-3. The verdict is the exit status (0 = every selected scenario passed) plus `summary.json` in the artifacts folder;
-   PASS lines printed during the run are provisional. On a failure read the scenario's `steps.txt`,
+   `UI_RESERVED_PORTS=5173,8080` keeps the run off ports the user's dev servers use; `--gif` records (needs ffmpeg).
+3. The verdict is the exit status (0 = every selected scenario passed) plus `summary.json` in the artifacts folder it
+   prints; PASS lines printed during the run are provisional. On a failure read the scenario's `steps.txt`,
    `failure-*.png` and `<person>-*.log` before saying what broke.
 4. Report what ran (scenarios, the app's revision and dirty files from `summary.json`) and what wasn't covered.
 
-Try it on the bundled example: `node "<tools>/ui/run.ts" --project "<tools>/projects/example" --app "<tools>/examples/notes" --all`.
+To see the kit work, run the bundled example on a copy (the plugin folder stays untouched):
+`cp -R "<tools>/examples/notes" "$TMPDIR/notes" && node "<tools>/ui/run.ts" --project "<tools>/projects/example" --app "$TMPDIR/notes" --all`.

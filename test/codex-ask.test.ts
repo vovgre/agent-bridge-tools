@@ -148,3 +148,16 @@ test("resume refuses a changed request; an 'active writer' error = interrupted w
   const e = thread();
   assert.match(ask(e, ["start", "--round", "01", "--cwd", e], { FAKE_AUTH: "Logged in using an API key" }).stderr, /isn't signed in with ChatGPT/);
 });
+
+test("a refused start leaves no lock behind (missing request, wrong auth, no codex CLI), so a retry needs no unlock", () => {
+  const d = mkdtempSync(join(tmpdir(), "ask dir-"));
+  assert.match(ask(d, ["start", "--round", "01", "--cwd", d]).stderr, /write the request first/);
+  assert.equal(existsSync(join(d, "01-lock")), false);
+  writeFileSync(join(d, "01-request.md"), "Question?");
+  assert.match(ask(d, ["start", "--round", "01", "--cwd", d], { FAKE_AUTH: "Logged in using an API key" }).stderr, /isn't signed in with ChatGPT/);
+  assert.equal(existsSync(join(d, "01-lock")), false);
+  const r = spawnSync(process.execPath, [bin, "start", "--round", "01", "--cwd", d, "--thread", d], { env: { PATH: "/usr/bin:/bin", HOME: process.env.HOME ?? "" }, encoding: "utf8" });
+  assert.match(r.stderr, /`codex` CLI isn't installed/);
+  assert.equal(existsSync(join(d, "01-lock")), false);
+  assert.equal(ask(d, ["start", "--round", "01", "--cwd", d]).status, 0);
+});
