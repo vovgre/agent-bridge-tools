@@ -64,7 +64,7 @@ const given = opt("artifacts");
 // (an installed plugin's folder is a cache that updates replace).
 const artifacts = resolve(given ? (existsSync(given) && readdirSync(given).length ? join(given, runId) : given) : join(app, ".agent-bridge", "ui-runs", runId));
 try { mkdirSync(artifacts, { recursive: true }); } catch (err) { die(`can't create the artifacts folder ${artifacts}: ${(err as Error).message} (pass --artifacts <dir>)`); }
-if (!findChrome()) die("no Chrome found: install Google Chrome or Chromium, or set CHROME_BIN");
+if (!findChrome()) die(process.env.CHROME_BIN ? `CHROME_BIN=${process.env.CHROME_BIN} doesn't exist` : "no Chrome found: install Google Chrome or Chromium, or set CHROME_BIN");
 const runFile = join(artifacts, "run.json");
 const runState: Record<string, unknown> = { runnerPid: process.pid, startedAt: new Date().toISOString(), keep, artifacts };
 const record = (more: Record<string, unknown>) => {

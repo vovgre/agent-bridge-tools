@@ -12,7 +12,7 @@ all of it, OpenAI's Codex plugin included.
   `!` command. Older Node fails with `ERR_UNKNOWN_FILE_EXTENSION`.
 - The Codex CLI signed in **with ChatGPT**: `npm install -g @openai/codex`, `codex login`, and `codex login status`
   must say "Logged in using ChatGPT". `codex-ask` refuses an API-key login; `/codex:setup` accepts either.
-- Chrome or Chromium for `browser-check` (`CHROME_BIN` to pick one).
+- Chrome or Chromium for `browser-check` (`CHROME_BIN=<full path>` to pick one).
 - Already have OpenAI's plugin as `codex@openai-codex`? Uninstall it first (`/plugin uninstall codex@openai-codex`):
   this plugin brings its own copy, and two copies can't both run their hooks.
 
@@ -56,7 +56,7 @@ ln -sfn "$PWD/skills/browser-check" ~/.claude/skills/browser-check
 ```
 
 - **A round with Codex:** write `<project>/.agent-bridge/threads/<topic>/01-request.md` (format in `docs/ROUNDS.md`),
-  then `node bin/codex-ask.ts start --thread <that dir> --round 01 --cwd <worktree> --mode review --sandbox read-only --notify`,
+  then `node bin/codex-ask.ts start --thread "<that dir>" --round 01 --cwd "<worktree>" --mode review --sandbox read-only --notify`,
   then read `01-reply.md`. Add `.agent-bridge/` to the project's `.gitignore`.
 - **A real-browser check:** `node ui/run.ts --project example --app examples/notes --all`. For your app, see
   "An adapter in your app's repo" below.
@@ -73,7 +73,7 @@ its artifacts folder.
 
 ```sh
 node ui/run.ts --project example --app examples/notes --all
-node ui/run.ts --project <name | path> --app <checkout> --scenario login,upload --artifacts /tmp/ui-run --gif
+node ui/run.ts --project "<name | path>" --app "<checkout>" --scenario login,upload --artifacts /tmp/ui-run --gif
 ```
 
 Options: `--no-build` (refuse a stale build instead of building), `--keep` (keep the instance's data directory),
@@ -165,7 +165,7 @@ runner during startup (with a grandchild in the server's group), during a scenar
 `.github/workflows/ci.yml` runs `npm test` and the example on every push and pull request.
 
 **In your app's CI:** check out the app and this repo, install the app, then
-`node <tools>/ui/run.ts --project <adapter path> --app . --all --artifacts ui-artifacts`, and upload `ui-artifacts/`
+`node "<tools>/ui/run.ts" --project "<adapter path>" --app . --all --artifacts ui-artifacts`, and upload `ui-artifacts/`
 when it fails. `ubuntu-latest` has Chrome (`CHROME_BIN=$(command -v google-chrome)`); no model credentials are needed.
 
 ### Known limits

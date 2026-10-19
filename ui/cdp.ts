@@ -15,7 +15,7 @@ const LINUX_CHROMES = ["google-chrome", "google-chrome-stable", "chromium", "chr
 
 /** CHROME_BIN, else the usual install place on macOS, else the first Chrome / Chromium on PATH. Null = none found. */
 export function findChrome(): string | null {
-  if (process.env.CHROME_BIN) return process.env.CHROME_BIN;
+  if (process.env.CHROME_BIN) return existsSync(process.env.CHROME_BIN) ? process.env.CHROME_BIN : null;
   if (process.platform === "darwin" && existsSync(MAC_CHROME)) return MAC_CHROME;
   for (const name of LINUX_CHROMES) {
     const r = spawnSync("sh", ["-c", `command -v ${name}`], { encoding: "utf8" });

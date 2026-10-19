@@ -27,4 +27,7 @@ Read the "browser kit" part of `<tools>/README.md` once. Quote every path in com
 4. Report what ran (scenarios, the app's revision and dirty files from `summary.json`) and what wasn't covered.
 
 To see the kit work, run the bundled example on a copy (the plugin folder stays untouched):
-`cp -R "<tools>/examples/notes" "$TMPDIR/notes" && node "<tools>/ui/run.ts" --project "<tools>/projects/example" --app "$TMPDIR/notes" --all`.
+```sh
+d=$(mktemp -d "${TMPDIR:-/tmp}/agent-bridge-notes.XXXXXX") && cp -R "<tools>/examples/notes" "$d/notes" \
+  && node "<tools>/ui/run.ts" --project "<tools>/projects/example" --app "$d/notes" --all
+```
