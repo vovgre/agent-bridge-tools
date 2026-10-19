@@ -1,0 +1,14 @@
+{
+  "name": "agent-bridge-tools",
+  "private": true,
+  "license": "MIT",
+  "repository": "github:vovgre/agent-bridge-tools",
+  "type": "module",
+  "engines": { "node": ">=22.6" },
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "example": "node ui/run.ts --project example --app examples/notes --all",
+    "ask": "node bin/codex-ask.ts",
+    "ui": "node ui/run.ts"
+  }
+}
