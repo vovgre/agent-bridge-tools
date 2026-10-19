@@ -1,0 +1,10 @@
+{
+  "name": "agent-bridge",
+  "version": "1.0.0",
+  "description": "codex-ask (Codex rounds with saved request, reply and decision) and browser-check (real-browser checks of a web app).",
+  "author": { "name": "Volodymyr Hresko" },
+  "homepage": "https://github.com/vovgre/agent-bridge-tools",
+  "repository": "https://github.com/vovgre/agent-bridge-tools",
+  "license": "MIT",
+  "dependencies": ["codex"]
+}

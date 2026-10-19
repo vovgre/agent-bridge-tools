@@ -1,31 +1,52 @@
 # agent-bridge-tools
 
 Tools for running Claude Code and OpenAI Codex on the same project: Claude does the work, Codex reviews it (or the
-other way round), and a headless-Chrome kit checks the UI claims in a real browser.
+other way round), and a headless-Chrome kit checks the UI claims in a real browser. One Claude Code plugin installs
+all of it, OpenAI's Codex plugin included.
 
-- `bin/codex-ask.ts`: one Codex round (`codex exec`) that can't lose its answer: request / reply / per-attempt files,
-  session id, a lock per round, completion checks, resume after a crash, subscription only (API keys stripped).
-- `skills/codex-ask/SKILL.md`: the Claude Code skill that drives it.
-- `docs/ROUNDS.md`: when to ask Codex, the request and report formats, how a round ends in one decision.
-- `ui/`: a headless-Chrome kit (CDP, real mouse / keyboard / form submits) with an isolated app instance per run;
-  `projects/example/` + `examples/notes/`: a worked example adapter and app.
+## Install
 
-Node 22.6+ (TypeScript runs directly, no dependencies). `npm test` runs the launcher tests against a fake `codex` (no
-Codex needed) and the browser kit's tests (skipped without Chrome).
+In Claude Code (2.1.275 or later):
 
-## Quick start
+```text
+/plugin install agent-bridge --marketplace vovgre/agent-bridge-tools
+```
+
+or in two steps: `/plugin marketplace add vovgre/agent-bridge-tools`, then `/plugin install agent-bridge@agent-bridge-tools`.
+Then `/reload-plugins` and `/codex:setup` (it checks that the `codex` CLI is installed and signed in with ChatGPT).
+Needs Node 22.6+ and, for the browser kit, Chrome.
+
+You get:
+
+| From | What |
+| --- | --- |
+| [`codex`](https://github.com/openai/codex-plugin-cc) (OpenAI, Apache-2.0; installed as a dependency, pinned to v1.0.6) | `/codex:review`, `/codex:adversarial-review`, `/codex:rescue`, `/codex:status`, `/codex:result`, the `codex:codex-rescue` agent |
+| `agent-bridge` (this repo, MIT) | skill `codex-ask`: a Codex round with a request packet, a reply that survives a crash, and one `decision.md` per topic (`bin/codex-ask.ts`, protocol in `docs/ROUNDS.md`) |
+| | skill `browser-check`: real-browser checks of a web app on an isolated instance (`ui/`, example in `projects/example/` + `examples/notes/`) |
+
+Already have `codex@openai-codex`? Uninstall it first (`/plugin uninstall codex@openai-codex`): two copies of the same
+plugin can't both run their hooks.
+
+**Which Codex tool when:** a quick review of the diff → `/codex:review`; a design challenge → `/codex:adversarial-review
+<focus>`; a task handed off → `/codex:rescue`; a review that has to leave a record (what was asked, Codex's full answer,
+what was decided) → ask Claude for a `codex-ask` round.
+
+## Without the plugin
 
 ```sh
 git clone https://github.com/vovgre/agent-bridge-tools && cd agent-bridge-tools
-ln -sfn "$PWD/skills/codex-ask" ~/.claude/skills/codex-ask    # the Claude Code skill
+ln -sfn "$PWD/skills/codex-ask" ~/.claude/skills/codex-ask
+ln -sfn "$PWD/skills/browser-check" ~/.claude/skills/browser-check
 ```
 
-- **A round with Codex** (needs the `codex` CLI signed in with ChatGPT): write
-  `<project>/.agent-bridge/threads/<topic>/01-request.md` (format in `docs/ROUNDS.md`), then
-  `node bin/codex-ask.ts start --thread <that dir> --round 01 --cwd <worktree> --mode review --sandbox read-only --notify`,
+- **A round with Codex:** write `<project>/.agent-bridge/threads/<topic>/01-request.md` (format in `docs/ROUNDS.md`),
+  then `node bin/codex-ask.ts start --thread <that dir> --round 01 --cwd <worktree> --mode review --sandbox read-only --notify`,
   then read `01-reply.md`. Add `.agent-bridge/` to the project's `.gitignore`.
 - **A real-browser check:** `node ui/run.ts --project example --app examples/notes --all`. For your app, copy
-  `projects/example/` to `projects/<name>/` (or anywhere: `--project` also takes a path) and adapt its hooks.
+  `projects/example/` into your app's repo and pass its path: `--project <dir>`.
+
+TypeScript runs directly on Node 22.6+, no dependencies. `npm test` runs the launcher tests against a fake `codex` (no
+Codex needed) and the browser kit's tests (skipped without Chrome).
 
 ## The browser kit (`ui/`)
 
