@@ -34,13 +34,14 @@ You get:
 | [`codex`](https://github.com/openai/codex-plugin-cc) (OpenAI, Apache-2.0; installed as a dependency, pinned to v1.0.6) | `/codex:review`, `/codex:adversarial-review`, `/codex:rescue`, `/codex:status`, `/codex:result`, the `codex:codex-rescue` agent |
 | `agent-bridge` (this repo, MIT) | skill `codex-ask`: a Codex round with a request packet, a reply that survives a crash, and one `decision.md` per topic (`bin/codex-ask.ts`, protocol in `docs/ROUNDS.md`) |
 | | skill `browser-check`: real-browser checks of a web app on an isolated instance (`ui/`, example in `projects/example/` + `examples/notes/`) |
+| | skill `guided-demo`: how to build a self-guided product demo with an in-app tour (story along the client's process, sample data, progress strip, the field crew's screen in a phone; mechanics and review checklist in `skills/guided-demo/tour-pattern.md`) |
 
 **Which Codex tool when:** a quick review of the diff → `/codex:review`; a design challenge → `/codex:adversarial-review
 <focus>`; a task handed off → `/codex:rescue`; a review that has to leave a record (what was asked, Codex's full answer,
 what was decided) → ask Claude for a `codex-ask` round. The `/codex:*` commands use whatever login Codex has;
 `codex-ask` always runs on ChatGPT and strips API keys from Codex's environment.
 
-Both skills keep their files in the project's `.agent-bridge/` folder (Codex threads in `threads/`, browser runs in
+`codex-ask` and `browser-check` keep their files in the project's `.agent-bridge/` folder (Codex threads in `threads/`, browser runs in
 `ui-runs/`): add `.agent-bridge/` to the project's `.gitignore`.
 
 **Updates:** `/plugin marketplace update agent-bridge-tools`, then `/plugin update agent-bridge@agent-bridge-tools` and
@@ -53,6 +54,7 @@ its pin (`.claude-plugin/marketplace.json`); a release bumps `version` in both m
 git clone https://github.com/vovgre/agent-bridge-tools && cd agent-bridge-tools
 ln -sfn "$PWD/skills/codex-ask" ~/.claude/skills/codex-ask
 ln -sfn "$PWD/skills/browser-check" ~/.claude/skills/browser-check
+ln -sfn "$PWD/skills/guided-demo" ~/.claude/skills/guided-demo
 ```
 
 - **A round with Codex:** write `<project>/.agent-bridge/threads/<topic>/01-request.md` (format in `docs/ROUNDS.md`),

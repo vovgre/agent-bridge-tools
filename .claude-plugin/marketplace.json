@@ -2,14 +2,14 @@
   "name": "agent-bridge-tools",
   "owner": { "name": "Volodymyr Hresko" },
   "metadata": {
-    "description": "Claude Code + Codex on one project: OpenAI's Codex plugin, a Codex round launcher that can't lose its answer, and a headless-Chrome kit.",
-    "version": "1.0.1"
+    "description": "Claude Code + Codex on one project: OpenAI's Codex plugin, a Codex round launcher that can't lose its answer, a headless-Chrome kit and a guide to self-guided product demos.",
+    "version": "1.1.0"
   },
   "plugins": [
     {
       "name": "agent-bridge",
-      "description": "codex-ask (Codex rounds with saved request, reply and decision) and browser-check (real-browser checks of a web app). Installs OpenAI's codex plugin with it.",
-      "version": "1.0.1",
+      "description": "codex-ask (Codex rounds with saved request, reply and decision), browser-check (real-browser checks of a web app) and guided-demo (building a self-guided product demo with an in-app tour). Installs OpenAI's codex plugin with it.",
+      "version": "1.1.0",
       "author": { "name": "Volodymyr Hresko" },
       "source": "./"
     },
