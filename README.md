@@ -33,6 +33,7 @@ You get:
 | --- | --- |
 | [`codex`](https://github.com/openai/codex-plugin-cc) (OpenAI, Apache-2.0; installed as a dependency, pinned to v1.0.6) | `/codex:review`, `/codex:adversarial-review`, `/codex:rescue`, `/codex:status`, `/codex:result`, the `codex:codex-rescue` agent |
 | `agent-bridge` (this repo, MIT) | skill `codex-ask`: a Codex round with a request packet, a reply that survives a crash, and one `decision.md` per topic (`bin/codex-ask.ts`, protocol in `docs/ROUNDS.md`) |
+| | skill `claude-ask`: the same rounds the other way, for Codex (or any agent with a shell) to delegate a review or an implementation to Claude Code on the Claude subscription (`bin/claude-ask.ts`, `bin/agent-ask.ts --provider claude`) |
 | | skill `browser-check`: real-browser checks of a web app on an isolated instance (`ui/`, example in `projects/example/` + `examples/notes/`) |
 | | skill `guided-demo`: how to build a self-guided product demo with an in-app tour (story along the client's process, sample data, progress strip, the field crew's screen in a phone; mechanics and review checklist in `skills/guided-demo/tour-pattern.md`) |
 
@@ -53,6 +54,7 @@ its pin (`.claude-plugin/marketplace.json`); a release bumps `version` in both m
 ```sh
 git clone https://github.com/vovgre/agent-bridge-tools && cd agent-bridge-tools
 ln -sfn "$PWD/skills/codex-ask" ~/.claude/skills/codex-ask
+mkdir -p ~/.codex/skills && ln -sfn "$PWD/skills/claude-ask" ~/.codex/skills/claude-ask   # for Codex (assumed skills folder)
 ln -sfn "$PWD/skills/browser-check" ~/.claude/skills/browser-check
 ln -sfn "$PWD/skills/guided-demo" ~/.claude/skills/guided-demo
 ```
@@ -63,8 +65,39 @@ ln -sfn "$PWD/skills/guided-demo" ~/.claude/skills/guided-demo
 - **A real-browser check:** `node ui/run.ts --project example --app examples/notes --all`. For your app, see
   "An adapter in your app's repo" below.
 
-TypeScript runs directly on Node 22.18+, no dependencies. `npm test` runs the launcher tests against a fake `codex` (no
-Codex needed) and the browser kit's tests (skipped without Chrome).
+TypeScript runs directly on Node 22.18+, no dependencies. `npm test` runs the launcher tests against a fake `codex` and
+a fake `claude` (neither CLI nor any login needed) and the browser kit's tests (skipped without Chrome).
+
+## Codex asks Claude (`claude-ask`)
+
+For Codex to hand the reading and editing to Claude Code and keep its own context (and tokens) for planning, checking
+and integration. Claude runs on the owner's Claude subscription only.
+
+**Setup (once, by the owner):** install Claude Code and sign in with a Claude Pro / Max / Team / Enterprise account
+(`claude auth login`); `claude auth status` must show a claude.ai login. The launcher never installs or signs in, and
+refuses API keys, auth tokens, base URLs, Bedrock / Vertex and other providers. For Codex to find the skill:
+`ln -sfn "$PWD/skills/claude-ask" ~/.codex/skills/claude-ask` (assumed Codex skills folder; check your Codex version),
+or point to `skills/claude-ask/SKILL.md` from the project's `AGENTS.md`. It is a plain CLI either way.
+
+```sh
+# review: Claude reads (Read / Glob / Grep), its final response becomes 01-reply.md
+node bin/claude-ask.ts start --thread "<project>/.agent-bridge/threads/<topic>" --round 01 --cwd "<worktree>" --mode review
+# implementation: + Edit / Write inside --cwd, no shell (Codex runs the tests), changes outside --write are reported
+node bin/claude-ask.ts start --thread "<dir>" --round 02 --cwd "<worktree>" --mode implement \
+  --sandbox workspace-write --write "<worktree>/src" --write "<worktree>/test"
+# a new request in the same Claude session (conversation preserved)
+node bin/claude-ask.ts start --thread "<dir>" --round 03 --continue-from 02 --sandbox workspace-write --write "<worktree>/src"
+node bin/claude-ask.ts status --thread "<dir>" --json      # compact results; also in NN-result.json
+node bin/claude-ask.ts resume --thread "<dir>" --round 02  # the same request again after an interruption
+node bin/claude-ask.ts cancel --thread "<dir>" --round 02  # stop it; nothing is published
+```
+
+What to know: every attempt states its restrictions in full (no settings, hooks, plugins or MCP servers from the
+machine, `--restricted` file tools, `dontAsk` permissions, never a bypass); a denied permission or a change outside
+`--write` keeps a round from `complete`; the scope check is detection with git, not an OS sandbox, and a worktree is
+isolation from shared files, not containment; nothing is retried automatically; a usage limit leaves the round
+`interrupted` until you `resume` it. Rounds count against the subscription's limits: the saving is the orchestrator's own
+context, not unlimited usage. Full rules: `docs/ROUNDS.md` ("The other way: Codex asks Claude").
 
 ## The browser kit (`ui/`)
 

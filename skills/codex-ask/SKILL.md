@@ -32,7 +32,9 @@ report format. Quote every path in commands: they often contain spaces.
 4. When it ends, read `NN-reply.md` (not the `-last.md` summary). Status `blocked` / `failed` / `interrupted`: read
    `node "<tools>/bin/codex-ask.ts" status --thread "<thread dir>"`; resume an interrupted round with `resume` (it refuses
    while the old Codex process still runs); a killed launcher leaves a lock: `unlock` (it checks the owner), and a
-   finished-but-unconfirmed reply: read it, then `accept`. Never start a second writer on the same round.
+   finished-but-unconfirmed reply: read it, then `accept`. Never start a second writer on the same round. Stop a running
+   round with `cancel --round NN` (nothing is published); a new question in the same Codex session:
+   `start --round MM --continue-from NN`.
 5. Check Codex's evidence yourself before relaying it: rerun its reproductions, check the diff (and untracked files) of
    a workspace-write round, run `browser-check` for UI claims. Commit for Codex: it can't commit in a linked worktree.
 6. Write the outcome into `<thread dir>/decision.md` and give the user one short answer with the link, in their language.
